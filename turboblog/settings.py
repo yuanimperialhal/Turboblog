@@ -24,6 +24,7 @@ WSGI_APPLICATION = "turboblog.wsgi.application"
 ASGI_APPLICATION = "turboblog.asgi.application"
 
 SQLITE_FILE = os.environ.get("SQLITE_FILE") or str(BASE_DIR / "backend" / "data" / "turbo-blog-django.sqlite")
+Path(SQLITE_FILE).expanduser().parent.mkdir(parents=True, exist_ok=True)
 
 DATABASES = {
     "default": {
@@ -71,4 +72,4 @@ AI_TIMEOUT_SECONDS = int(os.environ.get("AI_TIMEOUT_SECONDS", 20))
 AI_MAX_CONTEXT_CHARS = int(os.environ.get("AI_MAX_CONTEXT_CHARS", 5000))
 
 STATIC_ROOT_DIR = BASE_DIR
-UPLOAD_DIR = BASE_DIR / "assets" / "uploads"
+UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or BASE_DIR / "assets" / "uploads")
