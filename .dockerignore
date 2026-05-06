@@ -1,0 +1,12 @@
+.git
+.idea
+.venv
+venv
+__pycache__
+*.pyc
+*.sqlite
+*.sqlite3
+.env
+.codex_tmp
+assets/uploads/*
+!assets/uploads/.gitkeep
