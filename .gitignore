@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*.sqlite
+*.sqlite3
+.env
+.venv/
+venv/
+screenshots/
+assets/uploads/*
+!assets/uploads/.gitkeep
+.codex_tmp/
