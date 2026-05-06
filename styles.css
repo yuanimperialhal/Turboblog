@@ -793,6 +793,25 @@ h3 {
   margin: 28px 0;
 }
 
+.article-body blockquote {
+  margin: 22px 0;
+  padding: 18px 20px;
+  border: 1px solid rgba(79, 140, 255, 0.18);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--text);
+  background: rgba(238, 246, 255, 0.62);
+}
+
+.article-body blockquote p {
+  margin: 0 0 12px;
+  color: var(--text);
+}
+
+.article-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
 .article-actions {
   display: flex;
   flex-wrap: wrap;

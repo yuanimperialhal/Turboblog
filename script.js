@@ -194,13 +194,18 @@ function categoryOf(post) {
   return "note";
 }
 
+function stripBlockquoteMarker(line) {
+  return line.replace(/^>\s?/, "");
+}
+
 function markdownToHtml(markdown) {
   const lines = String(markdown || "").replace(/\r\n?/g, "\n").split("\n");
   const html = [];
   let inList = false;
   let inCode = false;
 
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
     if (line.trim().startsWith("```")) {
       if (inCode) {
         html.push("</code></pre>");
@@ -215,6 +220,19 @@ function markdownToHtml(markdown) {
 
     if (inCode) {
       html.push(`${escapeHtml(line)}\n`);
+      continue;
+    }
+
+    if (/^>\s?/.test(line)) {
+      if (inList) html.push("</ul>");
+      inList = false;
+      const quoteLines = [];
+      while (index < lines.length && /^>\s?/.test(lines[index])) {
+        quoteLines.push(stripBlockquoteMarker(lines[index]));
+        index += 1;
+      }
+      index -= 1;
+      html.push(`<blockquote>${markdownToHtml(quoteLines.join("\n"))}</blockquote>`);
       continue;
     }
 
@@ -682,6 +700,7 @@ function renderEditor(post = emptyPost()) {
             <span>正文 Markdown</span>
             <div class="markdown-toolbar" aria-label="Markdown 工具栏">
               <button class="mini-button" type="button" data-markdown-action="bold">加粗</button>
+              <button class="mini-button" type="button" data-markdown-action="quote">引用</button>
               <button class="mini-button" type="button" data-markdown-action="code">代码块</button>
               <button class="mini-button" type="button" data-markdown-action="image-url">图片链接</button>
               <button class="mini-button" type="button" data-markdown-action="image-file">上传图片</button>
@@ -737,6 +756,27 @@ function wrapTextareaSelection(textarea, before, after, placeholder) {
   insertIntoTextarea(textarea, value, before.length, before.length + selected.length);
 }
 
+function quoteTextareaSelection(textarea) {
+  if (!textarea) return;
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const selected = textarea.value.slice(start, end) || "引用内容";
+  const before = textarea.value.slice(0, start);
+  const after = textarea.value.slice(end);
+  const leadingBreak = before && !before.endsWith("\n") ? "\n" : "";
+  const trailingBreak = after && !after.startsWith("\n") ? "\n" : "";
+  const quote = selected
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line ? `> ${line}` : ">")
+    .join("\n");
+  const value = `${leadingBreak}${quote}${trailingBreak}`;
+  const placeholderAt = value.indexOf("引用内容");
+  const selectStart = placeholderAt >= 0 ? placeholderAt : leadingBreak.length;
+  const selectEnd = placeholderAt >= 0 ? placeholderAt + "引用内容".length : leadingBreak.length + quote.length;
+  insertIntoTextarea(textarea, value, selectStart, selectEnd);
+}
+
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -767,6 +807,8 @@ function bindEvents() {
       const action = markdownButton.dataset.markdownAction;
       if (action === "bold") {
         wrapTextareaSelection(textarea, "**", "**", "核心");
+      } else if (action === "quote") {
+        quoteTextareaSelection(textarea);
       } else if (action === "code") {
         wrapTextareaSelection(textarea, "\n```python\n", "\n```\n", "print(\"hello\")");
       } else if (action === "image-url") {
