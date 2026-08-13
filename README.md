@@ -2,6 +2,10 @@
 
 Turbo Blog 是一个轻量个人博客项目。前端保留简约蓝色视觉和蓝发二次元头像，后端已经从 Node.js 重构为 Django。现在一个 Python 服务即可同时提供前端页面、博客 API、文章写作、评论审核、图片上传、RSS、sitemap 和 robots.txt。
 
+<p align="center">
+  <img width="2154" height="1194" alt="屏幕截图 2026-05-19 174411" src="https://github.com/user-attachments/assets/d4f4bb21-3ecd-4653-b5e0-c79c52d30a69" />
+</p>
+
 ## 当前功能
 
 - 公开博客首页、文章列表、文章详情页
