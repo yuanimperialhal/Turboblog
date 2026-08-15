@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from urllib.parse import quote
 from unittest.mock import patch
 
@@ -142,17 +143,23 @@ def main():
     record(results, "验证码错误拦截", bad_comment.get("error") == "Captcha verification failed", bad_comment.get("error"))
 
     png_1x1 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lkXc5QAAAABJRU5ErkJggg=="
-    upload = body(client.post(
-        "/api/uploads",
-        data=json.dumps({"name": "test.png", "type": "image/png", "data": png_1x1}),
-        content_type="application/json",
-        **session_headers,
-    )).get("image", {})
-    record(results, "图片上传", upload.get("url", "").startswith("/assets/uploads/"), upload.get("url"))
-    if upload.get("url"):
-        uploaded_file = ROOT / upload["url"].lstrip("/")
-        if uploaded_file.exists():
-            uploaded_file.unlink()
+    with TemporaryDirectory() as upload_dir, override_settings(UPLOAD_DIR=Path(upload_dir)):
+        upload = body(client.post(
+            "/api/uploads",
+            data=json.dumps({"name": "test.png", "type": "image/png", "data": png_1x1}),
+            content_type="application/json",
+            **session_headers,
+        )).get("image", {})
+        upload_response = client.get(upload.get("url", "/assets/uploads/missing.png"))
+        upload_content = b"".join(upload_response.streaming_content) if upload_response.streaming else upload_response.content
+        record(
+            results,
+            "持久目录图片上传与读取",
+            upload.get("url", "").startswith("/assets/uploads/")
+            and upload_response.status_code == 200
+            and upload_content == base64.b64decode(png_1x1),
+            f"{upload.get('url')} -> {upload_response.status_code}",
+        )
 
     sitemap = client.get("/sitemap.xml").content.decode("utf-8")
     record(results, "sitemap", "<urlset" in sitemap and "/post/" in sitemap, "sitemap.xml")

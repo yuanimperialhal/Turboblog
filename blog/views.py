@@ -788,6 +788,19 @@ def robots_txt(request):
 
 def frontend(request, path=""):
     requested = path or "index.html"
+    upload_prefix = "assets/uploads/"
+    if requested.startswith(upload_prefix):
+        upload_root = settings.UPLOAD_DIR.resolve()
+        upload_target = (upload_root / requested[len(upload_prefix):]).resolve()
+        try:
+            upload_target.relative_to(upload_root)
+        except ValueError:
+            raise Http404("Forbidden")
+        if upload_target.is_file():
+            content_type = mimetypes.guess_type(str(upload_target))[0] or "application/octet-stream"
+            return FileResponse(upload_target.open("rb"), content_type=content_type)
+        raise Http404("Not found")
+
     root = settings.STATIC_ROOT_DIR.resolve()
     target = (root / requested).resolve()
     try:
