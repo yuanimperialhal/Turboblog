@@ -22,6 +22,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import BlogUser, Captcha, Comment, Post, RateLimit, Session, SiteSetting
+from .storage import ImageStorageError, store_uploaded_image
 
 
 def sha256(value):
@@ -414,12 +415,14 @@ def health(request):
 
 @csrf_exempt
 def storage(request):
+    engine = settings.DATABASES["default"]["ENGINE"]
+    postgres_ready = engine == "django.db.backends.postgresql"
     return json_ok({
         "ok": True,
-        "adapter": "django-sqlite",
-        "file": settings.DATABASES["default"]["NAME"],
+        "adapter": "django-postgresql" if postgres_ready else "django-sqlite",
+        "file": None if postgres_ready else settings.DATABASES["default"]["NAME"],
         "upgradeTargets": ["SQLite", "PostgreSQL"],
-        "postgresReady": False,
+        "postgresReady": postgres_ready,
     })
 
 
@@ -731,14 +734,15 @@ def upload_image(request):
         return json_error("Invalid image data")
     if not payload or len(payload) > settings.IMAGE_UPLOAD_LIMIT:
         return json_error("Image is empty or larger than the configured upload limit.")
-    settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     safe_name = re.sub(r"[^a-z0-9_-]+", "-", Path(str(body.get("name") or "image")).stem, flags=re.I).strip("-")[:48] or "image"
     filename = f"{int(timezone.now().timestamp() * 1000)}-{uuid.uuid4().hex[:8]}-{safe_name}{ext}"
-    target = settings.UPLOAD_DIR / filename
-    target.write_bytes(payload)
+    try:
+        image_url = store_uploaded_image(filename, payload, content_type)
+    except ImageStorageError:
+        return json_error("Object storage is temporarily unavailable.", 502)
     return json_ok({
         "image": {
-            "url": f"/assets/uploads/{filename}",
+            "url": image_url,
             "filename": filename,
             "size": len(payload),
             "type": content_type,

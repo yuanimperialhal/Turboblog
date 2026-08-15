@@ -1,2 +1,5 @@
 django>=5.2,<6.0
+dj-database-url>=2.2,<3.0
 gunicorn>=23.0,<24.0
+psycopg[binary]>=3.2,<4.0
+boto3>=1.35,<2.0

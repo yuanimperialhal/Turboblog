@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,15 +26,29 @@ ROOT_URLCONF = "turboblog.urls"
 WSGI_APPLICATION = "turboblog.wsgi.application"
 ASGI_APPLICATION = "turboblog.asgi.application"
 
-SQLITE_FILE = os.environ.get("SQLITE_FILE") or str(BASE_DIR / "backend" / "data" / "turbo-blog-django.sqlite")
-Path(SQLITE_FILE).expanduser().parent.mkdir(parents=True, exist_ok=True)
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": SQLITE_FILE,
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+REQUIRE_DATABASE_URL = os.environ.get("REQUIRE_DATABASE_URL", "0") == "1"
+if REQUIRE_DATABASE_URL and not DATABASE_URL:
+    raise ImproperlyConfigured("REQUIRE_DATABASE_URL=1 requires DATABASE_URL")
+if DATABASE_URL:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    SQLITE_FILE = os.environ.get("SQLITE_FILE") or str(
+        BASE_DIR / "backend" / "data" / "turbo-blog-django.sqlite"
+    )
+    Path(SQLITE_FILE).expanduser().parent.mkdir(parents=True, exist_ok=True)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": SQLITE_FILE,
+        }
+    }
 
 LANGUAGE_CODE = "zh-hans"
 TIME_ZONE = "Asia/Shanghai"
@@ -73,3 +90,26 @@ AI_MAX_CONTEXT_CHARS = int(os.environ.get("AI_MAX_CONTEXT_CHARS", 5000))
 
 STATIC_ROOT_DIR = BASE_DIR
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or BASE_DIR / "assets" / "uploads")
+
+R2_STORAGE_ENABLED = os.environ.get("R2_STORAGE_ENABLED", "0") == "1"
+R2_ENDPOINT_URL = os.environ.get("R2_ENDPOINT_URL", "").strip().rstrip("/")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "").strip()
+R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+if R2_STORAGE_ENABLED:
+    required_r2_settings = {
+        "R2_ENDPOINT_URL": R2_ENDPOINT_URL,
+        "R2_ACCESS_KEY_ID": R2_ACCESS_KEY_ID,
+        "R2_SECRET_ACCESS_KEY": R2_SECRET_ACCESS_KEY,
+        "R2_BUCKET_NAME": R2_BUCKET_NAME,
+        "R2_PUBLIC_BASE_URL": R2_PUBLIC_BASE_URL,
+    }
+    missing_r2_settings = [
+        name for name, value in required_r2_settings.items() if not value
+    ]
+    if missing_r2_settings:
+        raise ImproperlyConfigured(
+            "R2_STORAGE_ENABLED=1 requires: " + ", ".join(missing_r2_settings)
+        )

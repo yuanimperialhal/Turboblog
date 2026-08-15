@@ -23,37 +23,42 @@ Windows 可直接运行：
 start-blog.bat
 ```
 
-## Railway / Render 部署
+## Render Free + Neon + Cloudflare R2
 
-1. 把项目推送到 GitHub。
-2. 在 Railway 或 Render 里新建 Web Service。
-3. 连接 GitHub 仓库。
-4. 安装命令：
+这套方案不依赖 Render 持久磁盘：Render Free 只运行 Django，Neon PostgreSQL 保存文章、评论和会话，Cloudflare R2 保存上传图片。
+
+仓库根目录的 `render.yaml` 会创建一个 Render Free Web Service。先准备：
+
+1. 在 Neon 创建免费项目，复制 pooled `DATABASE_URL`（建议使用带 `-pooler` 的连接地址）。
+2. 在 Cloudflare R2 创建 `turboblog-uploads` bucket。
+3. 为该 bucket 创建 Object Read & Write API token，并记录 S3 endpoint、Access Key ID、Secret Access Key。
+4. 为 bucket 启用自定义域名或临时 `r2.dev` 公共地址，作为 `R2_PUBLIC_BASE_URL`。
+5. 在 Render Dashboard 用仓库里的 `render.yaml` 创建 Blueprint，并填入下列未写入仓库的值。
+
+```text
+DATABASE_URL=Neon pooled connection string
+R2_ENDPOINT_URL=https://你的账户ID.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=Cloudflare 生成的 Access Key ID
+R2_SECRET_ACCESS_KEY=Cloudflare 生成的 Secret Access Key
+R2_BUCKET_NAME=turboblog-uploads
+R2_PUBLIC_BASE_URL=https://你的图片公共域名（末尾不要加 /）
+```
+
+`DJANGO_SECRET_KEY` 和 `ADMIN_TOKEN` 由 Render 自动生成，不写入仓库。`REQUIRE_DATABASE_URL=1` 和 `R2_STORAGE_ENABLED=1` 已由 Blueprint 设置；缺少 PostgreSQL 或任何 R2 配置时应用会明确拒绝启动，避免数据误写到 Render 临时文件系统。
+
+Render 安装命令：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-5. 启动命令：
+启动命令：
 
 ```bash
 python manage.py migrate --noinput && python manage.py seed_initial_data && gunicorn turboblog.wsgi:application --bind 0.0.0.0:$PORT
 ```
 
-项目也带了 `Procfile`，支持会读取 Procfile 的平台自动部署。
-
-### Render Blueprint
-
-仓库根目录的 `render.yaml` 已包含完整 Render 配置。把仓库连接为 Blueprint 后，Render 会创建一个 `starter` Web Service，并挂载 1 GB 持久磁盘到 `/data`。
-
-Render 的免费 Web Service 不能挂载持久磁盘，因此该配置会产生付费资源。数据库和上传图片分别保存在：
-
-```text
-/data/turbo-blog-django.sqlite
-/data/uploads/
-```
-
-`DJANGO_SECRET_KEY` 和 `ADMIN_TOKEN` 由 Render 自动生成，不写入仓库。部署后检查：
+项目也带了 `Procfile`，支持会读取 Procfile 的平台自动部署。部署后检查：
 
 - `https://你的 Render 域名/`
 - `https://你的 Render 域名/api/health`
@@ -66,6 +71,7 @@ DJANGO_SECRET_KEY=换成一串很长的随机字符
 DJANGO_DEBUG=0
 ADMIN_TOKEN=换成你的后台强密码令牌
 ALLOWED_HOSTS=你的域名或平台分配域名
+DATABASE_URL=PostgreSQL 连接地址（公网部署推荐）
 ```
 
 例如：
@@ -80,7 +86,7 @@ ALLOWED_HOSTS=turbo-blog-production.up.railway.app
 ALLOWED_HOSTS=*
 ```
 
-## 数据保存
+## 数据保存与本地回退
 
 默认 SQLite 文件：
 
@@ -88,19 +94,19 @@ ALLOWED_HOSTS=*
 backend/data/turbo-blog-django.sqlite
 ```
 
-如果部署平台支持持久磁盘，建议把数据库放到持久目录：
+未设置 `DATABASE_URL` 时使用 SQLite。支持持久磁盘的平台可以设置：
 
 ```text
 SQLITE_FILE=/data/turbo-blog-django.sqlite
 ```
 
-图片上传会保存到：
+未启用 R2 时图片上传会保存到：
 
 ```text
-/data/uploads/
+assets/uploads/
 ```
 
-本地开发未设置 `UPLOAD_DIR` 时仍使用 `assets/uploads/`。长期公网运行也可以后续迁移到对象存储。
+可用 `UPLOAD_DIR` 修改本地目录。Render Free 的文件系统会被重置，因此公网部署必须使用 PostgreSQL 与 R2，不能依赖 SQLite 或本地上传目录。
 
 ## 搜索引擎收录
 

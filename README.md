@@ -15,7 +15,7 @@ Turbo Blog 是一个轻量个人博客项目。前端保留简约蓝色视觉和
 - 文章评论、验证码、敏感词过滤、频率限制
 - 评论默认进入审核，管理员可通过、拒绝或删除
 - 管理员令牌登录、用户名密码登录、会话 token、退出登录
-- 默认 Django + SQLite 存储
+- 本地默认 SQLite；设置 `DATABASE_URL` 后自动使用 PostgreSQL
 - AI 助手支持 RAG：先检索博客内容，再用 DeepSeek/GPT 等模型生成回答并返回来源
 - `sitemap.xml`、`rss.xml`、`robots.txt`，方便公网收录
 - 旧 Node 后端保留在 `backend/legacy_node/` 作为回滚参考
@@ -97,7 +97,7 @@ ADMIN_PASSWORD=your-strong-password python manage.py runserver [::]:5173
 backend/data/turbo-blog-django.sqlite
 ```
 
-如果部署平台支持持久磁盘，建议设置：
+设置 `DATABASE_URL` 后会自动切换到 PostgreSQL；未设置时仍使用 SQLite。支持持久磁盘的平台也可设置：
 
 ```text
 SQLITE_FILE=/data/turbo-blog-django.sqlite
@@ -108,6 +108,8 @@ SQLITE_FILE=/data/turbo-blog-django.sqlite
 ```text
 assets/uploads/
 ```
+
+设置 `R2_STORAGE_ENABLED=1` 并提供 R2 环境变量后，图片会写入 Cloudflare R2，本地目录仅作为开发回退。
 
 ## AI 助手与 RAG
 
@@ -190,8 +192,9 @@ stop-blog.bat                 Windows 停止脚本
 
 ```text
 GitHub 存代码
-Railway / Render / VPS 运行 Django
-SQLite 文件放到持久磁盘
+Render Free 运行 Django
+Neon PostgreSQL 保存业务数据
+Cloudflare R2 保存上传图片
 ```
 
 云平台安装命令：

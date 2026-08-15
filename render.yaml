@@ -2,14 +2,11 @@ services:
   - type: web
     name: turboblog-yuanimperialhal
     runtime: python
-    plan: starter
+    plan: free
+    region: singapore
     buildCommand: pip install -r requirements.txt
     startCommand: python manage.py migrate --noinput && python manage.py seed_initial_data && gunicorn turboblog.wsgi:application --bind 0.0.0.0:$PORT
     healthCheckPath: /api/health
-    disk:
-      name: turboblog-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: DJANGO_SECRET_KEY
         generateValue: true
@@ -21,7 +18,19 @@ services:
         generateValue: true
       - key: ALLOWED_HOSTS
         value: ".onrender.com"
-      - key: SQLITE_FILE
-        value: "/data/turbo-blog-django.sqlite"
-      - key: UPLOAD_DIR
-        value: "/data/uploads"
+      - key: REQUIRE_DATABASE_URL
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: R2_STORAGE_ENABLED
+        value: "1"
+      - key: R2_ENDPOINT_URL
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
