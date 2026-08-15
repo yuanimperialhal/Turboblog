@@ -92,6 +92,62 @@ class DatabaseConfigurationTests(SimpleTestCase):
         )
 
 
+class ProductionCredentialConfigurationTests(SimpleTestCase):
+    @staticmethod
+    def import_production_settings(**values):
+        environment = os.environ.copy()
+        for name in (
+            "DJANGO_SECRET_KEY",
+            "ADMIN_TOKEN",
+            "ADMIN_PASSWORD",
+            "REQUIRE_DATABASE_URL",
+            "R2_STORAGE_ENABLED",
+            "OBJECT_STORAGE_ENABLED",
+        ):
+            environment.pop(name, None)
+        environment.update(
+            {
+                "DJANGO_SETTINGS_MODULE": "turboblog.settings",
+                "DJANGO_DEBUG": "0",
+                "REQUIRE_DATABASE_URL": "0",
+                "OBJECT_STORAGE_ENABLED": "0",
+                **values,
+            }
+        )
+        return subprocess.run(
+            [sys.executable, "-c", "import django; django.setup()"],
+            cwd=Path(__file__).resolve().parent.parent,
+            env=environment,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_production_rejects_default_secret_and_admin_token(self):
+        result = self.import_production_settings()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DJANGO_SECRET_KEY", result.stderr)
+        self.assertIn("ADMIN_TOKEN", result.stderr)
+
+    def test_production_rejects_default_admin_password(self):
+        result = self.import_production_settings(
+            DJANGO_SECRET_KEY="production-secret-key",
+            ADMIN_TOKEN="production-admin-token",
+            ADMIN_PASSWORD="dev-token",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ADMIN_PASSWORD", result.stderr)
+
+    def test_production_accepts_explicit_non_default_credentials(self):
+        result = self.import_production_settings(
+            DJANGO_SECRET_KEY="production-secret-key",
+            ADMIN_TOKEN="production-admin-token",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class UploadPersistenceTests(SimpleTestCase):
     def test_uploaded_image_is_served_from_configured_upload_dir(self):
         with tempfile.TemporaryDirectory() as upload_dir, override_settings(

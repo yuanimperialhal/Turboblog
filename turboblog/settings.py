@@ -7,7 +7,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "turbo-blog-local-dev-secret")
+LOCAL_DEV_SECRET_KEY = "turbo-blog-local-dev-secret"
+LOCAL_DEV_ADMIN_TOKEN = "dev-token"
+
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", LOCAL_DEV_SECRET_KEY)
 DEBUG = os.environ.get("DJANGO_DEBUG", "1") != "0"
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("ALLOWED_HOSTS", "*").split(",") if host.strip()]
 
@@ -59,8 +62,23 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 JSON_BODY_LIMIT = int(os.environ.get("JSON_BODY_LIMIT", 8 * 1024 * 1024))
 IMAGE_UPLOAD_LIMIT = int(os.environ.get("IMAGE_UPLOAD_LIMIT", 5 * 1024 * 1024))
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", "dev-token")
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN", LOCAL_DEV_ADMIN_TOKEN)
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", ADMIN_TOKEN)
+if not DEBUG:
+    production_credential_errors = []
+    configured_secret_key = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+    configured_admin_token = os.environ.get("ADMIN_TOKEN", "").strip()
+    if not configured_secret_key or configured_secret_key == LOCAL_DEV_SECRET_KEY:
+        production_credential_errors.append("DJANGO_SECRET_KEY")
+    if not configured_admin_token or configured_admin_token == LOCAL_DEV_ADMIN_TOKEN:
+        production_credential_errors.append("ADMIN_TOKEN")
+    if ADMIN_PASSWORD == LOCAL_DEV_ADMIN_TOKEN:
+        production_credential_errors.append("ADMIN_PASSWORD")
+    if production_credential_errors:
+        raise ImproperlyConfigured(
+            "DJANGO_DEBUG=0 requires explicit non-default values for: "
+            + ", ".join(production_credential_errors)
+        )
 COMMENT_RATE_LIMIT_WINDOW_MS = int(os.environ.get("COMMENT_RATE_LIMIT_WINDOW_MS", 60_000))
 COMMENT_RATE_LIMIT_MAX = int(os.environ.get("COMMENT_RATE_LIMIT_MAX", 6))
 CAPTCHA_FAILURE_LIMIT = int(os.environ.get("CAPTCHA_FAILURE_LIMIT", 5))
