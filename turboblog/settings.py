@@ -91,25 +91,52 @@ AI_MAX_CONTEXT_CHARS = int(os.environ.get("AI_MAX_CONTEXT_CHARS", 5000))
 STATIC_ROOT_DIR = BASE_DIR
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR") or BASE_DIR / "assets" / "uploads")
 
-R2_STORAGE_ENABLED = os.environ.get("R2_STORAGE_ENABLED", "0") == "1"
-R2_ENDPOINT_URL = os.environ.get("R2_ENDPOINT_URL", "").strip().rstrip("/")
-R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "").strip()
-R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "").strip()
-R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "").strip()
-R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "").strip().rstrip("/")
+OBJECT_STORAGE_ENABLED = os.environ.get(
+    "OBJECT_STORAGE_ENABLED", os.environ.get("R2_STORAGE_ENABLED", "0")
+) == "1"
+OBJECT_STORAGE_ENDPOINT_URL = os.environ.get(
+    "OBJECT_STORAGE_ENDPOINT_URL",
+    os.environ.get("AWS_ENDPOINT_URL", os.environ.get("R2_ENDPOINT_URL", "")),
+).strip().rstrip("/")
+OBJECT_STORAGE_ACCESS_KEY_ID = os.environ.get(
+    "OBJECT_STORAGE_ACCESS_KEY_ID",
+    os.environ.get("AWS_ACCESS_KEY_ID", os.environ.get("R2_ACCESS_KEY_ID", "")),
+).strip()
+OBJECT_STORAGE_SECRET_ACCESS_KEY = os.environ.get(
+    "OBJECT_STORAGE_SECRET_ACCESS_KEY",
+    os.environ.get("AWS_SECRET_ACCESS_KEY", os.environ.get("R2_SECRET_ACCESS_KEY", "")),
+).strip()
+OBJECT_STORAGE_BUCKET_NAME = os.environ.get(
+    "OBJECT_STORAGE_BUCKET_NAME",
+    os.environ.get("AWS_S3_BUCKET_NAME", os.environ.get("R2_BUCKET_NAME", "")),
+).strip()
+OBJECT_STORAGE_REGION = os.environ.get(
+    "OBJECT_STORAGE_REGION", os.environ.get("AWS_DEFAULT_REGION", "auto")
+).strip()
+OBJECT_STORAGE_PUBLIC_BASE_URL = os.environ.get(
+    "OBJECT_STORAGE_PUBLIC_BASE_URL", os.environ.get("R2_PUBLIC_BASE_URL", "")
+).strip().rstrip("/")
 
-if R2_STORAGE_ENABLED:
-    required_r2_settings = {
-        "R2_ENDPOINT_URL": R2_ENDPOINT_URL,
-        "R2_ACCESS_KEY_ID": R2_ACCESS_KEY_ID,
-        "R2_SECRET_ACCESS_KEY": R2_SECRET_ACCESS_KEY,
-        "R2_BUCKET_NAME": R2_BUCKET_NAME,
-        "R2_PUBLIC_BASE_URL": R2_PUBLIC_BASE_URL,
+# Backward-compatible aliases for existing R2 deployments.
+R2_STORAGE_ENABLED = OBJECT_STORAGE_ENABLED
+R2_ENDPOINT_URL = OBJECT_STORAGE_ENDPOINT_URL
+R2_ACCESS_KEY_ID = OBJECT_STORAGE_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY = OBJECT_STORAGE_SECRET_ACCESS_KEY
+R2_BUCKET_NAME = OBJECT_STORAGE_BUCKET_NAME
+R2_PUBLIC_BASE_URL = OBJECT_STORAGE_PUBLIC_BASE_URL
+
+if OBJECT_STORAGE_ENABLED:
+    required_object_storage_settings = {
+        "OBJECT_STORAGE_ENDPOINT_URL": OBJECT_STORAGE_ENDPOINT_URL,
+        "OBJECT_STORAGE_ACCESS_KEY_ID": OBJECT_STORAGE_ACCESS_KEY_ID,
+        "OBJECT_STORAGE_SECRET_ACCESS_KEY": OBJECT_STORAGE_SECRET_ACCESS_KEY,
+        "OBJECT_STORAGE_BUCKET_NAME": OBJECT_STORAGE_BUCKET_NAME,
     }
-    missing_r2_settings = [
-        name for name, value in required_r2_settings.items() if not value
+    missing_object_storage_settings = [
+        name for name, value in required_object_storage_settings.items() if not value
     ]
-    if missing_r2_settings:
+    if missing_object_storage_settings:
         raise ImproperlyConfigured(
-            "R2_STORAGE_ENABLED=1 requires: " + ", ".join(missing_r2_settings)
+            "OBJECT_STORAGE_ENABLED=1 requires: "
+            + ", ".join(missing_object_storage_settings)
         )

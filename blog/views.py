@@ -15,14 +15,19 @@ from xml.sax.saxutils import escape as xml_escape
 
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
-from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import BlogUser, Captcha, Comment, Post, RateLimit, Session, SiteSetting
-from .storage import ImageStorageError, store_uploaded_image
+from .storage import (
+    ImageStorageError,
+    create_uploaded_image_download_url,
+    object_storage_settings,
+    store_uploaded_image,
+)
 
 
 def sha256(value):
@@ -794,6 +799,14 @@ def frontend(request, path=""):
     requested = path or "index.html"
     upload_prefix = "assets/uploads/"
     if requested.startswith(upload_prefix):
+        storage_config = object_storage_settings()
+        if storage_config["enabled"] and not storage_config["public_base_url"]:
+            try:
+                return HttpResponseRedirect(
+                    create_uploaded_image_download_url(requested[len(upload_prefix):])
+                )
+            except ImageStorageError:
+                return json_error("Object storage is temporarily unavailable.", 502)
         root = settings.UPLOAD_DIR.resolve()
         target = (root / requested[len(upload_prefix):]).resolve()
     else:

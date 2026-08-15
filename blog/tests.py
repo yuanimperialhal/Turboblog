@@ -165,6 +165,60 @@ class R2UploadTests(SimpleTestCase):
         self.assertEqual(response.status_code, 502)
 
 
+class RailwayBucketUploadTests(SimpleTestCase):
+    private_storage_settings = {
+        "ADMIN_TOKEN": "test-admin-token",
+        "OBJECT_STORAGE_ENABLED": True,
+        "OBJECT_STORAGE_ENDPOINT_URL": "https://s3.us-west-2.railway.app",
+        "OBJECT_STORAGE_ACCESS_KEY_ID": "test-access-key",
+        "OBJECT_STORAGE_SECRET_ACCESS_KEY": "test-secret-key",
+        "OBJECT_STORAGE_BUCKET_NAME": "railway-uploads",
+        "OBJECT_STORAGE_REGION": "us-west-2",
+        "OBJECT_STORAGE_PUBLIC_BASE_URL": "",
+    }
+
+    def test_private_bucket_upload_uses_stable_url_and_redirects_to_presigned_download(self):
+        storage_client = MagicMock()
+        storage_client.generate_presigned_url.return_value = (
+            "https://s3.us-west-2.railway.app/railway-uploads/signed-image"
+        )
+
+        with override_settings(**self.private_storage_settings), patch(
+            "boto3.client", return_value=storage_client
+        ):
+            client = Client()
+            upload_response = upload_image(client, "private image.png")
+
+            self.assertEqual(upload_response.status_code, 201)
+            image_url = upload_response.json()["image"]["url"]
+            self.assertTrue(image_url.startswith("/assets/uploads/"))
+
+            download_response = client.get(image_url)
+
+        self.assertEqual(download_response.status_code, 302)
+        self.assertEqual(
+            download_response["Location"],
+            "https://s3.us-west-2.railway.app/railway-uploads/signed-image",
+        )
+
+    def test_private_bucket_download_failure_returns_service_unavailable_error(self):
+        storage_client = MagicMock()
+        storage_client.generate_presigned_url.side_effect = ValueError("Invalid endpoint URL")
+
+        with override_settings(**self.private_storage_settings), patch(
+            "boto3.client", return_value=storage_client
+        ):
+            response = Client(raise_request_exception=False).get(
+                "/assets/uploads/private-image.png"
+            )
+
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()["error"],
+            "Object storage is temporarily unavailable.",
+        )
+
+
 class RenderPublicUrlTests(TestCase):
     def test_seed_uses_render_external_hostname_for_public_url(self):
         with patch.dict(
