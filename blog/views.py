@@ -788,8 +788,13 @@ def robots_txt(request):
 
 def frontend(request, path=""):
     requested = path or "index.html"
-    root = settings.STATIC_ROOT_DIR.resolve()
-    target = (root / requested).resolve()
+    upload_prefix = "assets/uploads/"
+    if requested.startswith(upload_prefix):
+        root = settings.UPLOAD_DIR.resolve()
+        target = (root / requested[len(upload_prefix):]).resolve()
+    else:
+        root = settings.STATIC_ROOT_DIR.resolve()
+        target = (root / requested).resolve()
     try:
         target.relative_to(root)
     except ValueError:

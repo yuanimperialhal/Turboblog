@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from django.conf import settings
@@ -14,16 +15,21 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         db_json = settings.BASE_DIR / "backend" / "data" / "db.json"
-        site, _ = SiteSetting.objects.get_or_create(pk=1)
+        site, site_created = SiteSetting.objects.get_or_create(pk=1)
         if db_json.exists():
             data = json.loads(Path(db_json).read_text(encoding="utf-8"))
             site_data = data.get("site") or {}
-            site.title = site_data.get("title") or site.title
-            site.description = site_data.get("description") or site.description
-            site.public_url = site_data.get("publicUrl") or site.public_url
-            site.save()
+            if site_created:
+                site.title = site_data.get("title") or site.title
+                site.description = site_data.get("description") or site.description
+                site.public_url = site_data.get("publicUrl") or site.public_url
         else:
             data = {"posts": []}
+
+        render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+        if render_hostname and site.public_url.rstrip("/") == "http://localhost:5173":
+            site.public_url = f"https://{render_hostname}"
+        site.save()
 
         if not BlogUser.objects.filter(username="admin").exists():
             BlogUser.objects.create(
