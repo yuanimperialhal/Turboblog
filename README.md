@@ -15,7 +15,7 @@ Turbo Blog 是一个轻量个人博客项目。前端保留简约蓝色视觉和
 - 文章评论、验证码、敏感词过滤、频率限制
 - 评论默认进入审核，管理员可通过、拒绝或删除
 - 管理员令牌登录、用户名密码登录、会话 token、退出登录
-- 本地默认 SQLite；设置 `DATABASE_URL` 后自动使用 PostgreSQL
+- 本地默认 SQLite；公网部署使用 Neon PostgreSQL 的 `DATABASE_URL`
 - AI 助手支持 RAG：先检索博客内容，再用 DeepSeek/GPT 等模型生成回答并返回来源
 - `sitemap.xml`、`rss.xml`、`robots.txt`，方便公网收录
 - 旧 Node 后端保留在 `backend/legacy_node/` 作为回滚参考
@@ -97,19 +97,19 @@ ADMIN_PASSWORD=your-strong-password python manage.py runserver [::]:5173
 backend/data/turbo-blog-django.sqlite
 ```
 
-设置 `DATABASE_URL` 后会自动切换到 PostgreSQL；未设置时仍使用 SQLite。支持持久磁盘的平台也可设置：
+设置 `DATABASE_URL` 后会自动切换到 PostgreSQL；未设置时仍使用 SQLite。Railway 部署应设置 `REQUIRE_DATABASE_URL=1`，避免生产环境意外回退到临时 SQLite。支持持久磁盘的平台也可设置：
 
 ```text
 SQLITE_FILE=/data/turbo-blog-django.sqlite
 ```
 
-上传图片会保存到：
+未启用对象存储时，上传图片会保存到：
 
 ```text
 assets/uploads/
 ```
 
-设置 `R2_STORAGE_ENABLED=1` 并提供 R2 环境变量后，图片会写入 Cloudflare R2，本地目录仅作为开发回退。
+Railway 部署使用私有 Railway Bucket。设置 `OBJECT_STORAGE_ENABLED=1` 并提供 `AWS_*` 变量后，图片会写入 Bucket；本地目录仅作为开发回退。私有对象不会暴露永久公网 URL，应用返回稳定的同源 `/assets/uploads/<key>` 路径，访问该路径时再重定向到短时有效的签名 URL。
 
 ## AI 助手与 RAG
 
@@ -186,16 +186,18 @@ start-blog.bat                Windows 启动脚本
 stop-blog.bat                 Windows 停止脚本
 ```
 
-## 公网部署
+## 公网部署（推荐：Railway Free + Neon Free + Railway Bucket）
 
-详细步骤见 `DEPLOYMENT.md`。当前推荐：
+详细步骤见 `DEPLOYMENT.md`。推荐使用一个 Railway Django 服务、一个 Neon Free PostgreSQL 数据库和一个私有 Railway Bucket：
 
 ```text
 GitHub 存代码
-Render Free 运行 Django
-Neon PostgreSQL 保存业务数据
-Cloudflare R2 保存上传图片
+Railway Free 运行 Django
+Neon Free 保存业务数据
+Railway Bucket 保存上传图片
 ```
+
+Railway Free、Neon Free 和 Bucket 都有各自的额度、限制和计费规则；不要把它们理解为无限或永久零成本。建议在 Railway Workspace Usage 中设置不高于可接受额度的 Compute Hard Limit；达到硬限额时 Railway 会让工作负载下线，而不是继续产生超额计算费用。可以按需启用 Serverless 让不活跃服务休眠。
 
 云平台安装命令：
 
@@ -209,14 +211,40 @@ pip install -r requirements.txt
 python manage.py migrate --noinput && python manage.py seed_initial_data && gunicorn turboblog.wsgi:application --bind 0.0.0.0:$PORT
 ```
 
-重要环境变量：
+应用服务需要配置下列变量（值只在 Railway Variables 中填写，不要提交到 Git）：
 
 ```text
-DJANGO_SECRET_KEY=换成很长的随机字符串
+DJANGO_SECRET_KEY=<生成一串很长的随机字符串>
 DJANGO_DEBUG=0
-ADMIN_TOKEN=换成你的后台强密码令牌
-ALLOWED_HOSTS=你的公网域名
+ADMIN_TOKEN=<生成一个强随机后台令牌>
+ALLOWED_HOSTS=<Railway 生成的公网域名>,healthcheck.railway.app
+DATABASE_URL=<Neon pooled PostgreSQL connection string>
+REQUIRE_DATABASE_URL=1
+OBJECT_STORAGE_ENABLED=1
+
+# Railway Bucket credentials/references
+AWS_ENDPOINT_URL=${{railway-bucket.ENDPOINT}}
+AWS_ACCESS_KEY_ID=${{railway-bucket.ACCESS_KEY_ID}}
+AWS_SECRET_ACCESS_KEY=${{railway-bucket.SECRET_ACCESS_KEY}}
+AWS_S3_BUCKET_NAME=${{railway-bucket.BUCKET}}
+AWS_DEFAULT_REGION=${{railway-bucket.REGION}}
+AWS_S3_URL_STYLE=virtual
 ```
+
+`railway-bucket` 替换成 Railway Bucket 服务名。也可以在 Bucket Credentials 中复制不含真实值的同名 `AWS_*` 配置，或使用 Railway 的自动注入。`AWS_S3_URL_STYLE` 使用 Credentials 页面给出的值；新 Bucket 通常为 `virtual`，旧 Bucket 可能要求 `path`。不要把 `AWS_SECRET_ACCESS_KEY` 或任何真实密钥写入 README、`.env.example` 或提交记录。
+
+`railway.json` 已声明 Django 的启动命令和 `/api/health` 健康检查；Railway 会注入 `$PORT`，不需要把端口写死。部署后至少检查：
+
+- `https://<Railway 公网域名>/`
+- `https://<Railway 公网域名>/api/health`
+- `https://<Railway 公网域名>/api/storage`（应显示 PostgreSQL）
+- 管理员令牌登录和一次图片上传；再次请求返回的 `/assets/uploads/<key>` 应重定向到新的签名 URL。
+
+Railway 官方参考：[`railway.json` Config as Code](https://docs.railway.com/config-as-code)、[Variables](https://docs.railway.com/variables)、[Healthchecks](https://docs.railway.com/deployments/healthchecks)、[Cost Control](https://docs.railway.com/pricing/cost-control)、[Storage Buckets](https://docs.railway.com/storage-buckets)。
+
+### 可选旧方案：Render + Cloudflare R2
+
+仓库仍保留 `render.yaml` 以及 `R2_*` 兼容变量，便于已有部署迁移或回滚。它不是当前推荐方案，也不应表述为零成本：Render、Cloudflare R2 的免费额度、计费、休眠和持久性规则都由各自平台决定。新部署请优先按 `DEPLOYMENT.md` 使用 Railway Bucket。
 
 ## 测试
 
