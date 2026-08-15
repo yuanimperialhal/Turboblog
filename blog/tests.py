@@ -247,10 +247,29 @@ class PublicUrlTests(TestCase):
             "https://turboblog-example.up.railway.app",
         )
 
+    def test_seed_prefers_railway_public_domain_over_render_hostname(self):
+        with patch.dict(
+            os.environ,
+            {
+                "RAILWAY_PUBLIC_DOMAIN": "turboblog-example.up.railway.app",
+                "RENDER_EXTERNAL_HOSTNAME": "turboblog-example.onrender.com",
+            },
+            clear=False,
+        ):
+            call_command("seed_initial_data", verbosity=0)
+
+        self.assertEqual(
+            SiteSetting.objects.get(pk=1).public_url,
+            "https://turboblog-example.up.railway.app",
+        )
+
     def test_seed_uses_render_external_hostname_for_public_url(self):
         with patch.dict(
             os.environ,
-            {"RENDER_EXTERNAL_HOSTNAME": "turboblog-example.onrender.com"},
+            {
+                "RAILWAY_PUBLIC_DOMAIN": "",
+                "RENDER_EXTERNAL_HOSTNAME": "turboblog-example.onrender.com",
+            },
             clear=False,
         ):
             call_command("seed_initial_data", verbosity=0)
