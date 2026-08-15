@@ -197,7 +197,7 @@ Neon Free 保存业务数据
 Railway Bucket 保存上传图片
 ```
 
-Railway Free、Neon Free 和 Bucket 都有各自的额度、限制和计费规则；不要把它们理解为无限或永久零成本。建议在 Railway Workspace Usage 中设置不高于可接受额度的 Compute Hard Limit；达到硬限额时 Railway 会让工作负载下线，而不是继续产生超额计算费用。可以按需启用 Serverless 让不活跃服务休眠。
+当前 Railway Free 计划包含每月 $1 的额度。要把部署限制在这笔免费额度内，请在 Railway Workspace Usage 中把 Compute Hard Limit 设置为 $1（如果界面允许则可设更低）；达到该 Compute 硬限额时工作负载会下线，而不是继续产生超额计算费用。这里说的是 Compute Usage，不是 Agent Usage。Neon Free 和 Railway Bucket 也有各自的额度、限制和计费规则，不要把整套拓扑理解为无限或永久零成本。可以按需启用 Serverless 让不活跃服务休眠。
 
 云平台安装命令：
 
@@ -237,8 +237,8 @@ AWS_S3_URL_STYLE=virtual
 
 - `https://<Railway 公网域名>/`
 - `https://<Railway 公网域名>/api/health`
-- `https://<Railway 公网域名>/api/storage`（应显示 PostgreSQL）
-- 管理员令牌登录和一次图片上传；再次请求返回的 `/assets/uploads/<key>` 应重定向到新的签名 URL。
+- `https://<Railway 公网域名>/api/storage`（只证明 Neon/PostgreSQL 已被 Django 选中）
+- 使用 `ADMIN_TOKEN` 登录，并完成一次经过认证的图片上传；再请求返回的稳定 `/assets/uploads/<key>`，观察它是否重定向到新的签名 URL 并成功下载图片，以证明 Railway Bucket 连通和持久化。
 
 Railway 官方参考：[`railway.json` Config as Code](https://docs.railway.com/config-as-code)、[Variables](https://docs.railway.com/variables)、[Healthchecks](https://docs.railway.com/deployments/healthchecks)、[Cost Control](https://docs.railway.com/pricing/cost-control)、[Storage Buckets](https://docs.railway.com/storage-buckets)。
 

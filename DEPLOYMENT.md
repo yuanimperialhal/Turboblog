@@ -2,7 +2,7 @@
 
 当前项目由一个 Django 服务同时提供前端页面、博客 API、文章管理、评论审核、图片上传、RSS、sitemap 和 robots.txt。推荐拓扑是 Railway Free + Neon Free + Railway Bucket：Neon 保存业务数据，私有 Railway Bucket 保存上传对象，Django 仍然保持前后端同源。
 
-这是一套“尽量使用免费额度”的部署方案，不是无限或永久零成本承诺。Railway Bucket 会按存储量计费，服务到 Bucket 或用户的网络流量也可能计入服务用量；Neon 和 Railway 也有各自的额度和限制。部署后请在 Railway Workspace Usage 设置 Compute Hard Limit，达到硬限额时工作负载会下线以阻止继续产生超额计算费用。可按需在服务设置中启用 Serverless，让不活跃服务休眠。
+当前 Railway Free 计划包含每月 $1 的额度。要把部署限制在这笔免费额度内，请在 Railway Workspace Usage 中把 Compute Hard Limit 设置为 $1（如果界面允许则可设更低）；达到该 Compute 硬限额时工作负载会下线，以阻止继续产生超额计算费用。这里说的是 Compute Usage，不是 Agent Usage。Neon Free 和 Railway Bucket 也有各自的额度、限制和计费规则，因此整套拓扑不是无限或永久零成本承诺。可按需在服务设置中启用 Serverless，让不活跃服务休眠。
 
 ## 本地运行
 
@@ -17,7 +17,7 @@ python manage.py runserver [::]:5173
 
 - 博客：http://localhost:5173
 - 健康检查：http://localhost:5173/api/health
-- 存储状态：http://localhost:5173/api/storage
+- 数据库状态：http://localhost:5173/api/storage
 - sitemap：http://localhost:5173/sitemap.xml
 
 Windows 可直接运行：
@@ -89,9 +89,9 @@ AWS_S3_URL_STYLE=virtual
 
 - `https://<railway-public-domain>/`：首页。
 - `https://<railway-public-domain>/api/health`：健康检查返回 `ok=true`。
-- `https://<railway-public-domain>/api/storage`：显示 PostgreSQL，并确认对象存储已启用。
-- 使用 `ADMIN_TOKEN` 登录管理入口。
-- 上传一张图片，确认响应 URL 是 `/assets/uploads/` 开头；再请求该 URL，确认它重定向到新的 signed URL 并能加载图片。
+- `https://<railway-public-domain>/api/storage`：只证明 Neon/PostgreSQL 已被 Django 选中；该端点不检查 Bucket 连通性。
+- 使用 `ADMIN_TOKEN` 登录管理入口，并完成一次经过认证的图片上传。
+- 确认上传响应 URL 是 `/assets/uploads/` 开头；再请求该稳定同源 URL，观察它重定向到新的 signed URL 并成功下载图片，以证明 Railway Bucket 连通和持久化。
 - `https://<railway-public-domain>/sitemap.xml`、`/rss.xml`、`/robots.txt`：确认站点公开 URL 正确。
 
 Railway 官方参考：[`Config as Code`](https://docs.railway.com/config-as-code)、[`Variables`](https://docs.railway.com/variables)、[`Healthchecks`](https://docs.railway.com/deployments/healthchecks)、[`Cost Control`](https://docs.railway.com/pricing/cost-control)、[`Storage Buckets`](https://docs.railway.com/storage-buckets)、[`Uploading & Serving Files`](https://docs.railway.com/storage-buckets/uploading-serving)。
