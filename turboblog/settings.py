@@ -68,11 +68,15 @@ if not DEBUG:
     production_credential_errors = []
     configured_secret_key = os.environ.get("DJANGO_SECRET_KEY", "").strip()
     configured_admin_token = os.environ.get("ADMIN_TOKEN", "").strip()
+    configured_admin_password = ADMIN_PASSWORD.strip()
     if not configured_secret_key or configured_secret_key == LOCAL_DEV_SECRET_KEY:
         production_credential_errors.append("DJANGO_SECRET_KEY")
     if not configured_admin_token or configured_admin_token == LOCAL_DEV_ADMIN_TOKEN:
         production_credential_errors.append("ADMIN_TOKEN")
-    if ADMIN_PASSWORD == LOCAL_DEV_ADMIN_TOKEN:
+    if (
+        not configured_admin_password
+        or configured_admin_password == LOCAL_DEV_ADMIN_TOKEN
+    ):
         production_credential_errors.append("ADMIN_PASSWORD")
     if production_credential_errors:
         raise ImproperlyConfigured(

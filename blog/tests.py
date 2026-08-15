@@ -139,6 +139,32 @@ class ProductionCredentialConfigurationTests(SimpleTestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("ADMIN_PASSWORD", result.stderr)
 
+    def test_production_rejects_blank_whitespace_or_default_admin_password(self):
+        for password in ("", " \t ", " dev-token "):
+            with self.subTest(password=repr(password)):
+                result = self.import_production_settings(
+                    DJANGO_SECRET_KEY="production-secret-key",
+                    ADMIN_TOKEN="production-admin-token",
+                    ADMIN_PASSWORD=password,
+                )
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("ADMIN_PASSWORD", result.stderr)
+
+    def test_production_rejects_whitespace_secret_key_or_admin_token(self):
+        for name in ("DJANGO_SECRET_KEY", "ADMIN_TOKEN"):
+            with self.subTest(name=name):
+                values = {
+                    "DJANGO_SECRET_KEY": "production-secret-key",
+                    "ADMIN_TOKEN": "production-admin-token",
+                    "ADMIN_PASSWORD": "production-admin-password",
+                }
+                values[name] = " \t "
+                result = self.import_production_settings(**values)
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(name, result.stderr)
+
     def test_production_accepts_explicit_non_default_credentials(self):
         result = self.import_production_settings(
             DJANGO_SECRET_KEY="production-secret-key",
