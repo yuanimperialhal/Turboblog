@@ -113,6 +113,9 @@ OBJECT_STORAGE_BUCKET_NAME = os.environ.get(
 OBJECT_STORAGE_REGION = os.environ.get(
     "OBJECT_STORAGE_REGION", os.environ.get("AWS_DEFAULT_REGION", "auto")
 ).strip()
+OBJECT_STORAGE_ADDRESSING_STYLE = os.environ.get(
+    "OBJECT_STORAGE_ADDRESSING_STYLE", os.environ.get("AWS_S3_URL_STYLE", "virtual")
+).strip() or "virtual"
 OBJECT_STORAGE_PUBLIC_BASE_URL = os.environ.get(
     "OBJECT_STORAGE_PUBLIC_BASE_URL", os.environ.get("R2_PUBLIC_BASE_URL", "")
 ).strip().rstrip("/")

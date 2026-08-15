@@ -17,6 +17,7 @@ def object_storage_settings():
             "secret_access_key": settings.OBJECT_STORAGE_SECRET_ACCESS_KEY,
             "bucket_name": settings.OBJECT_STORAGE_BUCKET_NAME,
             "region": settings.OBJECT_STORAGE_REGION,
+            "addressing_style": settings.OBJECT_STORAGE_ADDRESSING_STYLE,
             "public_base_url": settings.OBJECT_STORAGE_PUBLIC_BASE_URL,
         }
     if settings.R2_STORAGE_ENABLED:
@@ -27,6 +28,7 @@ def object_storage_settings():
             "secret_access_key": settings.R2_SECRET_ACCESS_KEY,
             "bucket_name": settings.R2_BUCKET_NAME,
             "region": "auto",
+            "addressing_style": "virtual",
             "public_base_url": settings.R2_PUBLIC_BASE_URL,
         }
     return {"enabled": False}
@@ -43,7 +45,7 @@ def object_storage_client(config):
             connect_timeout=5,
             read_timeout=10,
             retries={"max_attempts": 2, "mode": "standard"},
-            s3={"addressing_style": "virtual"},
+            s3={"addressing_style": config["addressing_style"]},
         ),
     )
 

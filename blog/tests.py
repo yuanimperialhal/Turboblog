@@ -218,6 +218,20 @@ class RailwayBucketUploadTests(SimpleTestCase):
             "Object storage is temporarily unavailable.",
         )
 
+    def test_private_bucket_honors_path_style_addressing(self):
+        storage_client = MagicMock()
+
+        with override_settings(
+            **self.private_storage_settings,
+            OBJECT_STORAGE_ADDRESSING_STYLE="path",
+        ), patch("boto3.client", return_value=storage_client) as boto_client:
+            response = upload_image(Client(), "path-style image.png")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            boto_client.call_args.kwargs["config"].s3["addressing_style"], "path"
+        )
+
 
 class RenderPublicUrlTests(TestCase):
     def test_seed_uses_render_external_hostname_for_public_url(self):
