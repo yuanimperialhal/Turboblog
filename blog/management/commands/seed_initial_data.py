@@ -26,9 +26,12 @@ class Command(BaseCommand):
         else:
             data = {"posts": []}
 
-        render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
-        if render_hostname and site.public_url.rstrip("/") == "http://localhost:5173":
-            site.public_url = f"https://{render_hostname}"
+        public_hostname = (
+            os.environ.get("RAILWAY_PUBLIC_DOMAIN", "").strip()
+            or os.environ.get("RENDER_EXTERNAL_HOSTNAME", "").strip()
+        )
+        if public_hostname and site.public_url.rstrip("/") == "http://localhost:5173":
+            site.public_url = f"https://{public_hostname}"
         site.save()
 
         if not BlogUser.objects.filter(username="admin").exists():
